@@ -16,7 +16,7 @@ by *Euler or Runge-Kutta method* and *Finite Difference Method*, respectively.
 
 (Fig.1)
 
-![lpf_example_S](/images/BVP.png)
+![lpf_example_S](/figure/BVP.png)
 
 (Fig.2)
 
