@@ -1,4 +1,4 @@
-# sana
+# sana, smart aid for numerical analysis
 Package of numerical computation methods
 
 
