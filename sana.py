@@ -328,6 +328,46 @@ x = np.linspace(0,1,20)
 y = np.linspace(0,1,10)
 
 
+"""
+Fourier transform for even and odd function
+"""
+def fourier(fun,f):
+    operator_e = lambda f,t: cos(2*pi*f*t)
+    operator_o = lambda f,t: sin(2*pi*f*t)
+
+    even = integrate.quad(lambda t:fun(t)*operator_e(f,t),-np.inf,np.inf)[0]
+    odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),-np.inf,np.inf)[0]
+    return even + 1j*odd
+
+f1 = lambda x,b: 1 if (abs(x)<b) else 0
+x = np.linspace(-5,5,100)
+b = 1
+ans = np.array([f1(i,b) for i in x])
+
+freq = np.linspace(-3,3,100)
+ans2 = np.array([fourier(lambda t:f1(t,b),i) for i in freq])
+f1a = lambda w,b: sqrt(2/pi)*sin(b*w)/w
+
+
+fig,ax = plt.subplots(2,1)
+ax[0].plot(x,ans)
+ax[1].plot(freq,ans2.real,label = 'real')
+ax[1].plot(freq,ans2.imag,label = 'imag')
+ax[1].plot(freq,list(map(lambda t:f1a(t,b),freq*2*pi)),label = 'analytical',linestyle = 'dashed')
+ax[1].legend()
+
+f2 = lambda x,b: x if(abs(x)<b) else 0
+x = np.linspace(-5,5,100)
+b = 2
+
+F2 = np.array([fourier(lambda t:f2(t,b),i) for i in freq])
+fig,ax = plt.subplots(2,1)
+ax[0].plot(x,list(map(lambda x:f2(x,b),x)))
+ax[1].plot(freq,F2.real,label = 'real')
+ax[1].plot(freq,F2.imag,label = 'imag')
+ax[1].legend()
+
+
 
 
 """
