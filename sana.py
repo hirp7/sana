@@ -120,7 +120,10 @@ plt.plot(C*1e12)
 #We can see it will converge to around 70 pF
 
 W = 0.5
-
+er = 3.6
+e0 = 8.85e-12
+u0 = 4*pi*1e-7
+ur = 1
 k1 = sqrt(omega**2*er*ur*e0*u0)
 k2 = sqrt(omega**2*e0*u0)
 
@@ -148,21 +151,142 @@ Jx1 = lambda x: 1 if (x >= 0 and x < W/2) else -1 if (x < 0 and x > -W/2) else 0
 Jx2 = lambda x: 2/W*x if (x >= -W/4 and x < W/4) else -2/W*x - 4*W/2 if (x < -W/4 and x > -W/2) else -2/W*x + 4*W/2  if (x < W/2 and x > W/4) else 0
 
 
+def test(alpha,beta,f):
+    omega  = 2*pi*f
+    k1 = sqrt(omega**2*er*ur*e0*u0)
+    k2 = sqrt(omega**2*e0*u0)
+    k0 = k2
+
+    gamma1 = alpha**2 + beta**2 - k1**2
+    gamma2 = alpha**2 + beta**2 - k2**2
+
+    b11 = lambda alpha,beta: 1j*alpha*((k0**2 - beta**2)/(k1**2 - beta**2) - 1)
+    b12 = lambda alpha,beta: omega*u0*gamma1/beta*(gamma2/gamma1  + (k0**2 - beta**2)/(k1**2 - beta**2)*tanh(gamma1*h))
+    b21 = lambda alpha,beta: omega*e0*gamma1/beta*(gamma2/gamma1 + er*(k0**2 - beta**2)/(k1**2 - beta**2)*coth(gamma1*h))
+    b22 = lambda alpha,beta: -b11(alpha,beta)
+    det = lambda alpha,beta: b11(alpha,beta)*b22(alpha,beta) - b12(alpha,beta)*b21(alpha,beta)
+    F1 = lambda beta:omega*u0*gamma1*tanh(gamma1*h)/(1j*(k0**2 - beta**2))
+    
+    G11 = lambda alpha,beta: 1/det(alpha,beta)*(F1(beta)*b22(alpha,beta) \
+                            + alpha*beta/(k1**2 - beta**2)*b12(alpha,beta))
+    G12 = lambda alpha,beta: b12(alpha,beta)/det(alpha,beta)
+    G21 = lambda alpha,beta: gamma2/det(alpha,beta)*(F1(beta)*b21(alpha,beta)\
+                            + alpha*beta/(k1**2 - beta**2)*b11(alpha,beta))
+    G22 = lambda alpha,beta: gamma2*b11(alpha,beta)/det(alpha,beta)
 
 
+
+
+
+    return G11(alpha,beta),det(alpha,beta),F1(beta)     
+W = 5
 Jz1 = lambda x: 1 if (abs(x)<=W/2) else 0
 Jz2 = lambda x: 2/W*x if (x >= 0 and x < W/2) else -2/W*x if (x < 0 and x > -W/2) else 0
 Jx1 = lambda x: 1 if (x >= 0 and x < W/2) else -1 if (x < 0 and x > -W/2) else 0
 #Jx2 = lambda x: 4/W*x if (x >= -W/4 and x < W/4) else -4/W*x if ((x < -W/4 and x > -W/2) or (x < W/2 and x > W/4)) else 0
 Jx2 = lambda x: 2/W*x if (x >= -W/4 and x < W/4) else -2/W*x - 4*W/2 if (x < -W/4 and x > -W/2) else -2/W*x + 4*W/2  if (x < W/2 and x > W/4) else 0
 
+
+
 def fourier(fun,f):
-    operator = lambda f,t:np.exp(-1j*2*pi*f*t)
-    
-    #calc = list(map(lambda s:integrate.quad(lambda t:fun(t)*\
-    #                        operator(s,t),0,np.inf)[0],s))   
-    ans = integrate.quad(lambda t:fun(t)*operator(f,t),-np.inf,np.inf)[0]
-    return ans 
+    operator_e = lambda f,t: cos(2*pi*f*t)
+    operator_o = lambda f,t: sin(2*pi*f*t)
+
+    even = integrate.quad(lambda t:fun(t)*operator_e(f,t),-np.inf,np.inf)[0]
+    odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),-np.inf,np.inf)[0]
+    return even + 1j*odd
+
+Jz1_FT,Jz2_FT,Jx1_FT,Jx2_FT = [lambda f: fourier(i,f) for i in [Jz1,Jz2,Jx1,Jx2]]
+W = 8
+
+fig,ax = plt.subplots(2,2)
+ax = ax.reshape(4)
+x = np.linspace(-10,10,100)
+[i.plot(x,list(map(j,x))) for i,j in zip(ax,[Jz1,Jz2,Jx1,Jx2])]
+k = np.linspace(-1,1,100)
+
+fig,ax = plt.subplots(2,2)
+ax = ax.reshape(4)
+[i.plot(k,np.array(list(map(j,k))).imag) for i,j in zip(ax,[Jz1_FT,Jz2_FT,Jx1_FT,Jx2_FT])]
+
+
+plt.plot(k,np.array(list(map(Jz2_FT,k))).imag)
+
+w = 3.0
+l = w/2
+
+Exm_x = lambda x,r:cos(2*(r-1)*pi*x/w)/sqrt((w/2)**2 - x**2) if abs(x)<w/2 else 0 
+Exm_z = lambda z,s:cos((2*s-1)*pi*z/l)/sqrt((l/2)**2 - z**2) if abs(z)<l/2 else 0
+
+Ezn_x = lambda x,r:sin(2*r*pi*x/w)/sqrt((w/2)**2 - x**2) if abs(x)<w/2 else 0
+Ezn_z = lambda z,s:sin((2*s-1)*pi*z/l)/sqrt((l/2)**2 - z**2) if abs(z)<l/2 else 0 
+Exm = lambda x,z,r,s: Exm_x(x,r)*Exm_z(z,s)
+Ezn = lambda x,z,r,s: Ezn_x(x,r)*Ezn_z(z,s)
+
+EXM_X = lambda f:fourier(lambda t:Exm_x(t,1),f)
+EZN_X = lambda f:fourier(lambda t:Ezn_x(t,1),f)
+
+EXM_Z = lambda f:fourier(lambda t:Exm_z(t,1),f)
+EZN_Z = lambda f:fourier(lambda t:Ezn_z(t,1),f)
+
+
+x = np.linspace(-5,5,100)
+alpha = np.linspace(-1,1,100)
+
+
+fig,ax = plt.subplots(2,1)
+ax[0].plot(x,list(map(lambda x:Exm_x(x,1),x)),label = "Exm_x")
+ax[0].plot(x,list(map(lambda x:Ezn_x(x,1),x)),label = 'Ezn_x')
+ax[0].legend()
+ax[1].plot(x,list(map(lambda x:EXM_X(x),alpha)),label = "F(Exm_x)")
+ax[1].plot(x,np.array(list(map(lambda x:EZN_X(x),alpha))).imag,label = "F(Ezn_x)")
+ax[1].legend()
+fig.suptitle("Basis function and fourier transform")
+
+fig,ax = plt.subplots(2,1)
+ax[0].plot(x,list(map(lambda x:Exm_z(x,1),x)),label = "Exm_z")
+ax[0].plot(x,list(map(lambda x:Ezn_z(x,1),x)),label = 'Ezn_z')
+ax[0].legend()
+ax[1].plot(x,list(map(lambda x:EXM_Z(x),alpha)),label = "F(Exm_z)")
+ax[1].plot(x,np.array(list(map(lambda x:EZN_Z(x),alpha))).imag,label = "F(Ezn_z)")
+ax[1].legend()
+fig.suptitle("Basis function and fourier transform")
+
+
+#ax.plot(x,list(map(Ex3,x)))
+
+
+test_fun = lambda t,a: sin(a*t)/t if abs(t)<20 else 0
+Test_fun = lambda f:fourier(lambda t:test_fun(t,2),f)
+
+t = np.linspace(-2*pi,2*pi,100)
+f = np.linspace(-1,1,100)
+
+step = lambda x: 0 if x < 0 else 1
+fig,ax = plt.subplots(2,1)
+ax[0].plot(t,np.array(list(map(lambda t:test_fun(t,2),t))).real)
+ax[1].plot(f,np.array(list(map(Test_fun,f))).real)
+ax[1].plot(f,np.array([step(2-i*2*pi)*sqrt(pi/2) for i in f]))
+
+
+fig,ax = plt.subplots()
+x = np.linspace(-5,5,100)
+ax.plot(x,np.array([step(i) for i in x]))
+ax.plot(x,np.array([step(2-i) for i in x]))
+
+
+
+fig,ax = plt.subplots()
+ax.plot(alpha,np.array(list(map(Ex1_FT,alpha))).imag)
+
+"""
+fig,ax = plt.subplots(2,2)
+ax = ax.reshape(4)
+k = np.linspace(-10,10,100)
+[i.plot(k,list(map(j,k))) for i,j in zip(ax,[Jz1_FT,Jz2_FT,Jx1_FT,Jx2_FT])]
+"""
+
+
 
 from scipy.fft import fft, ifft, fftfreq, fftshift, ifftshift
 
@@ -192,8 +316,10 @@ A = a(t)
 ax[0].plot(t,sin(t))
 ax[1].plot(A.imag)
 
-Jzm = lambda x,z,w,l,r,s:cos((r-1)*pi*2*x/w)/sqrt((w/2)**2 - x**2) * cos((2*s-1)*pi*z/l)/sqrt((l/2)**2 - z**2) if (abs(x)<w/2 and abs(z)<l/2) else 0 #a function of x and z
-Jxm = lambda x,z,w,l,r,s:sin(2*r*pi*x/w)/sqrt((w/2)**2 - x**2)*sin((2*s-1)*pi*z/l)/sqrt((l/z)**2 - z**2) if (abs(x)<w/2 and abs(z)<l/2) else 0
+Jzm = lambda x,z,w,l,r,s:cos((r-1)*pi*2*x/w)/sqrt((w/2)**2 - x**2) \
+    * cos((2*s-1)*pi*z/l)/sqrt((l/2)**2 - z**2) if (abs(x)<w/2 and abs(z)<l/2) else 0 #a function of x and z
+Jxm = lambda x,z,w,l,r,s:sin(2*r*pi*x/w)/sqrt((w/2)**2 - x**2)\
+    *sin((2*s-1)*pi*z/l)/sqrt((l/z)**2 - z**2) if (abs(x)<w/2 and abs(z)<l/2) else 0
 w = 3.6e-3
 l = 1.8e-3
 Jz1_patch = lambda x,z:Jzm(x,z,w,l,1,1)
@@ -328,6 +454,7 @@ x = np.linspace(0,1,20)
 y = np.linspace(0,1,10)
 
 
+
 """
 Fourier transform for even and odd function
 """
@@ -370,6 +497,7 @@ ax[1].legend()
 
 
 
+
 """
 Slot antenna analysis using spectral domain method of immitance approach
 """
@@ -395,7 +523,7 @@ def laplace(fun,s):
 
 f1 = lambda t:1
 s1 = np.linspace(1,10,10)
-F1 = laplace(f1,s)
+F1 = laplace(f1,s1)
 
 
 f2 = lambda t,a:np.exp(a*t)
