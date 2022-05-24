@@ -1,0 +1,292 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 20 14:39:40 2022
+
+@author: hiro7
+"""
+
+import numpy as np
+import scipy as sp
+import matplotlib.pyplot as plt
+from numpy import sqrt,sin,cos,pi
+from matplotlib import cm
+dB = lambda x:10*np.log10(x)
+from scipy import integrate
+
+import mpl_toolkits.mplot3d.axes3d as axes3d
+
+c0 = 2.9979e8
+
+E0 = 1
+f = 30e9
+k0 = 2*pi*f/c0
+
+def find_nearest(a, a0):
+    "Element in nd array `a` closest to the scalar value `a0`"
+    idx = np.abs(a - a0).argmin()
+    return idx,a.flat[idx]
+
+a_test = np.random.randn(10)
+#D(theta,phi)
+def plot_antenna(D,var,hold = 'phi',ax = None):
+    fig,ax = plt.subplots(2,1)
+    if hold == 'phi':
+        ax[0].plot(theta*180/pi,D[:,find_nearest(phi,var[0])[0]])
+        ax[1].plot(theta*180/pi,D[:,find_nearest(phi,var[1])[0]])
+    else: #hold is theta
+        ax[0].plot(phi*180/pi,D[find_nearest(phi,var[0])[0],:])
+        ax[1].plot(phi*180/pi,D[find_nearest(phi,var[1])[0],:])
+
+    #ax[0].plot(theta,D[:,find_nearest(phi,var)[0]])
+    return fig,ax 
+    #ax[0,0].plot
+"""
+def plot_polar(D,var,hold = 'phi',ax = None):
+    fig,ax = plt.subplots(2,1)
+    if hold == 'phi':
+        ax[0].plot(theta*180/pi,D[:,find_nearest(phi,var[0])[0]])
+        ax[1].plot(theta*180/pi,D[:,find_nearest(phi,var[1])[0]])
+    else: #hold is theta
+        ax[0].plot(phi*180/pi,D[find_nearest(phi,var[0])[0],:])
+        ax[1].plot(phi*180/pi,D[find_nearest(phi,var[1])[0],:])
+
+    #ax[0].plot(theta,D[:,find_nearest(phi,var)[0]])
+    return fig,ax 
+    #ax[0,0].plot
+"""
+
+
+
+def plot_3D(x,y,Z,plot_type = 'heat'):
+    if plot_type == 'heat':
+        fig, ax = plt.subplots()
+        ax.imshow(Z, cmap='hot', interpolation='nearest')
+    elif plot_type == 'Polar': #x = theta, y = phi,
+
+        fig = plt.figure()
+        THETA, PHI = np.meshgrid(theta, phi)
+        #R = np.cos(PHI**2)
+        X =  np.sin(PHI) * np.cos(THETA)# * R
+        Y =  np.sin(PHI) * np.sin(THETA)# * R
+        #Z = R * np.cos(PHI)
+
+        ax = fig.add_subplot(1,1,1, projection='3d')
+        plot = ax.plot_surface(
+            X, Y, Z, rstride=1, cstride=1, cmap=plt.get_cmap('jet'),
+            linewidth=0, antialiased=False, alpha=0.5)
+            
+    else:
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        X,Y = np.meshgrid(x,y)
+        ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
+                           linewidth=0, antialiased=False)
+    return fig,ax
+
+
+
+
+
+#matrice = lambda x:[x]
+xi = 377
+
+#E_theta_aperture = lambda theta,phi,a,b:1j*a*b*k0*E0/(2*pi)*(sin(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+#E_phi_aperture = lambda theta,phi,a,b:1j*a*b*k0*E0/(2*pi)*(cos(theta)*cos(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+
+def test_fun(a,b):
+    return a+b,a*b
+
+def aperture(theta,phi,a,b): #analytical solution
+    a = a*c0/f #q wavelength
+    b = b*c0/f
+    xi = 377
+    X = k0*a/2*sin(theta)*cos(phi)
+    Y = k0*b/2*sin(theta)*sin(phi)
+    E_theta = 1j*a*b*k0*E0/(2*pi)*(sin(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+    E_phi = 1j*a*b*k0*E0/(2*pi)*(cos(theta)*cos(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+    H_theta = -E_phi/xi
+    H_phi = E_theta/xi
+    U = 1/2/xi*(np.abs(E_theta)**2 + np.abs(E_phi)**2)
+    return E_theta,E_phi,H_theta,H_phi,U
+#class Antenna(object):
+#    def __init__(self,phi,theta):
+ 
+#Aperture
+theta = np.linspace(-pi/2,pi/2,100)
+phi = np.linspace(0.01,pi/2,100)
+
+       
+#E_theta,E_phi,H_theta,H_phi = np.array([[aperture(i,j) for i in theta] for j in phi]).transpose(2,0,1)
+a = 3
+b = 2
+E_thetaa,E_phia,H_thetaa,H_phia,U_a = np.array([[aperture(i,j,a,b) for i in theta] for j in phi]).transpose(2,0,1)
+Prada = integrate.dblquad(lambda theta,phi:aperture(theta,phi,a,b)[4]*sin(theta),0,pi,lambda theta:0.00,lambda theta:pi)[0]
+D = U_a/Prada
+D0 = dB(4*pi*np.max(U_a)/Prada) 
+#D = np.array([[directivity(E_theta[i[0],j[0]],E_phi[i[0],j[0]],H_theta[i[0],j[0]],H_phi[i[0],j[0]]) for i in enumerate(theta)] for j in enumerate(phi)])
+D_normalize = D/np.max(D)
+
+print(f'D0 = {D0}')
+
+plot_3D(theta,phi,dB(np.abs(D_normalize)),plot_type = 'heat')
+fig,ax = plot_antenna(dB(D_normalize),var=[0,pi/2],hold = 'phi')
+ax[0].set_xlim(-90,90)
+ax[1].set_xlim(-90,90)
+#ax[0].set_ylim(-40,0)
+#ax[1].set_ylim(-40,0)
+
+
+
+
+
+"""
+#Balanis p.43 correct.
+U_test = lambda theta,phi: sin(theta)
+U = np.array([[U_test(i,j) for i in np.linspace(0,pi,100)] for j in np.linspace(0,2*pi,100)])
+Prada_test = integrate.dblquad(lambda theta,phi:U_test(theta,phi)*sin(theta),0,2*pi,lambda theta:0,lambda theta:pi)[0]
+
+D0_test = dB(4*pi*np.max(U)/Prada_test)
+"""
+#TypeError: can't convert complex to float
+def patch(theta,phi,W,L,h,f0):
+    k0 = 2*pi*f0/c0
+    lambda0 = c0/f0
+    #W = W * f/c0 #a wavelength
+    #L = L * f/c0
+    #h = h * f/c0
+    xi = 120*pi
+    X = k0*(h*lambda0)/2*sin(theta)*cos(phi)
+    Z = k0*(W*lambda0)/2*cos(theta)
+    E_theta = 0
+    #E_theta = 1j*a*b*k*E0/(2*pi)*(sin(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+    E_phi = 1j*k0*(h*lambda0)*(W*lambda0)*E0/pi*(sin(theta)*sin(X)/X*sin(Z)/Z)# AF->*cos(k0*(L*lambda0)/2*sin(theta)*sin(phi))
+    #E_phi = 1j*a*b*k*E0/(2*pi)*(cos(theta)*cos(phi)*(sin(X)/X)*(sin(Y)/Y))#*exp(-1j*k*r)/r
+    H_theta = -E_phi/xi
+    H_phi = E_theta/xi
+    U = 1/2/xi*(np.abs(E_theta)**2 + np.abs(E_phi)**2)
+    return E_theta,E_phi,H_theta,H_phi,U
+#patch
+theta = np.linspace(0.001,pi,100)
+phi = np.linspace(0.001,pi/2,100)
+f0 = 10e9
+k0 = 2*pi*f0/c0
+lambda0 = c0/f0
+E0 = 1
+W = 11.86e-3/lambda0 #
+L = 9.06e-3/lambda0
+h = 1.588e-3/lambda0
+Er = 2.2
+k1 = k0
+E_theta,E_phi,H_theta,H_phi,U_patch = np.array([[patch(i,j,W,L,h,f0) for i in theta] for j in phi]).transpose(2,0,1)
+Prad = lambda theta: (sin(k1*W*lambda0/2*cos(theta))/cos(theta))**2*sin(theta)**3
+Prad_patch_tb = integrate.quad(Prad,0,pi)
+#G1 = Prad_patch_tb[0]/(pi*377)
+G1 = Prad_patch_tb[0]/(120*pi**2) # approx 1/120*(W*lambda0/lambda0)
+
+
+
+Prad_patch = integrate.dblquad(lambda theta,phi:patch(theta,phi,W,L,h,f0)[4]*sin(theta),0,2*pi,lambda theta:0.00,lambda theta:pi)[0]
+D = U_patch/Prad_patch
+D0 = dB(4*pi*np.max(U_patch)/Prad_patch) 
+#D = np.array([[directivity(E_theta[i[0],j[0]],E_phi[i[0],j[0]],H_theta[i[0],j[0]],H_phi[i[0],j[0]]) for i in enumerate(theta)] for j in enumerate(phi)])
+D_normalize = D/np.max(D)
+print(f'D0 = {D0}')
+
+
+
+plot_3D(theta,phi,dB(np.abs(D_normalize)),plot_type = 'heat')
+plot_antenna(D_normalize,[pi/2,pi/4] ,hold = 'phi')
+
+
+
+
+
+fig, ax = plt.subplots(2,1,subplot_kw={'projection': 'polar'})
+#fig, ax = plt.subplots(2,1)
+
+ax[0].plot(phi,dB(D_normalize[50,:]),label = 'E-plane')
+ax[1].plot(theta, dB(D_normalize[:,50]),label = 'H-plane')
+
+#ax.plot(theta, dB(D_normalize[:,0]),'b-')
+#ax.plot(theta, dB(D_normalize[:,-1]),'r-')
+ax[0].set_rmax(0)
+ax[0].set_rmin(-40.0)
+#ax.set_theta_zero_location("W")
+ax[0].set_theta_offset(pi/2)
+ax[1].set_rmax(0)
+ax[1].set_rmin(-40.0)
+#ax.set_theta_zero_location("W")
+#ax[1].set_theta_offset(pi/2)
+
+#Exact definition of directivity. However, directivity in far-field is already implemented inside a function
+"""
+def directivity(E_theta,E_phi,H_theta,H_phi):
+    a_theta = np.array([1,0])
+    a_phi = np.array([0,1])
+    U = 1/2*np.cross(a_theta*E_theta + a_phi*E_phi,(a_theta*H_theta + a_phi*H_phi).conj().T)
+    return U
+"""
+
+
+#example of integration
+"""
+from scipy import integrate
+
+f = lambda y, x, c : x*y**2 + c
+
+t = integrate.dblquad(f, 0, 2, lambda x: 0, lambda x: 1,args = [1])
+#    (0.6666666666666667, 7.401486830834377e-15)
+invexp = lambda x: np.exp(-x)
+
+integrate.quad(invexp, 0, np.inf)
+#(1.0, 5.842605999138044e-11)
+
+
+
+integrate.quad(lambda x,c: test_fun(x,c)[0],1,5,args =(1))
+f_ = lambda theta,phi: sin(theta)
+test1 = integrate.dblquad(f_,0,2*pi,lambda theta: 0, lambda theta: pi/6)
+test2 = integrate.quad(f_,0,pi/6,args = [pi/2])
+print(f'test1 = {test1[0]}, test2 = {test2[0]}')
+
+
+"""
+
+
+
+#axisb: axis -1 is out of bounds for array of dimension 0
+D = np.array([[directivity(E_theta[i[0],j[0]],E_phi[i[0],j[0]],H_theta[i[0],j[0]],H_phi[i[0],j[0]]) for i in enumerate(theta)] for j in enumerate(phi)])
+D_normalize = D/np.max(D)
+E_mag = np.array([[sqrt(np.abs(np.array([1,0])*E_theta[i[0],j[0]])**2 + np.abs(np.array([0,1])*E_phi[i[0],j[0]])**2) for i in enumerate(theta)] for j in enumerate(phi)])
+"""
+#x = fig.add_subplot(projection='3d')
+
+# Create the mesh in polar coordinates and compute corresponding Z.
+theta, phi = np.linspace(0, 2 * np.pi, 40), np.linspace(0, np.pi, 40)
+THETA, PHI = np.meshgrid(theta, phi)
+R = np.cos(PHI**2)
+X = R * np.sin(PHI) * np.cos(THETA)
+Y = R * np.sin(PHI) * np.sin(THETA)
+Z = R * np.cos(PHI)
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1, projection='3d')
+plot = ax.plot_surface(
+    X, Y, Z, rstride=1, cstride=1, cmap=plt.get_cmap('jet'),
+    linewidth=0, antialiased=False, alpha=0.5)
+"""
+
+
+"""
+fig,ax = plt.subplots()
+ax.plot(theta*180/pi,dB(D_normalize[:,0]),label = r'$\phi$ = 0')
+#ax.plot(theta,D_normalize[:,-1])
+#ax.plot(theta*180/pi,dB(D_normalize[:,50]),label = r'$\phi$ = $\pi$/4')
+#ax.plot(theta*180/pi,dB(D_normalize[:,25]),label = r'$\phi$ = $\pi$/6')
+
+ax.plot(theta*180/pi,dB(D_normalize[:,-1]),label = r'$\phi$ = $\pi$/2')
+
+ax.set_xlabel('theta')
+ax.set_ylabel('Directivity')
+ax.set_ylim(-40,0)
+ax.legend()
+"""
+
