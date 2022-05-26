@@ -63,35 +63,154 @@ def fourier_expansion(fun,L,n):
     return approx,np.array([an,bn])
 
 
-def fourier(fun,f,lim = None):
-    operator_e = lambda f,t:cos(2*pi*f*t)
-    operator_o = lambda f,t:sin(2*pi*f*t)
-    #operator_e = lambda f,t:np.exp(-1j*2*pi*f*t)
-    #calc = list(map(lambda s:integrate.quad(lambda t:fun(t)*\
-    #                       operator(s,t),0,np.inf)[0],s))
+label_set = lambda ax,labels: [ax.set_xlabel(labels[0]),ax.set_ylabel(labels[1])]
+
+
+def f_transform(fun,f,lim = None):
+    operator_e = lambda w,t:cos(w*t)
+    operator_o = lambda w,t:sin(w*t)
     if lim == None:
         even = integrate.quad(lambda t:fun(t)*operator_e(f,t),-np.inf,np.inf)[0]
         odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),-np.inf,np.inf)[0]
     else:
         even = integrate.quad(lambda t:fun(t)*operator_e(f,t),lim[0],lim[1])[0]
-        odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),lim[0],lim[1])[0]
-        
-    return even + 1j*odd
+        odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),lim[0],lim[1])[0]        
+    return 1/(sqrt(2*pi))*(even - 1j*odd)
+#test_f2 = lambda t: np.exp(t) if abs(t)<2 else 0
+
+#fig,ax = plot(lambda x:f1(x,b),x,F1,w)
+
+def plot(f,t,F,w):
+    fig,ax = plt.subplots(2,1)
+    
+    #ax[0].plot(t,list(map(lambda t: f,t)))
+    ax[0].plot(t,[f(i) for i in t])
+    ax[1].plot(w,F.real,label = 'real')
+    ax[1].plot(w,F.imag,label = 'imag')
+    
+    ax[1].legend()
+    label_set(ax[0],['x','magnitude'])
+    label_set(ax[1],['w','magnitude'])
+    #ax[0].set_label(ax[1].set_xlabel('frequency w')
+    fig.tight_layout(pad = 1.2)
+    ax[0].set_title('Fourier')
+    #fig.suptitle("Fourier")
+    
+    return fig,ax
 
 
-test_f1 = lambda t: 1 if abs(t)<1 else 0
-#test_f1 = lambda t: np.exp(-t) if t > 0 else 0
-test_f2 = lambda t: np.exp(t) if abs(t)<2 else 0
 
-t = np.linspace(-1,1,100)
-test = np.array([fourier(test_f1,i,lim = [0,1]) for i in t])
-k = 1
+
+f1 = lambda t,b: 1 if abs(t)<b else 0
+a1 = lambda w,b: sqrt(2/pi)*sin(b*w)/w
+b = 1
+
+x = np.linspace(-5,5,100)
+w = np.linspace(-10,10,100)
+
+F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f1(x,b),x,F1,w)
+ax[1].plot(w,np.array(list(map(lambda w:a1(w,b),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical',markevery = 10)
+ax[1].legend()
+
+
+f2 = lambda t,b,c: 1 if b<t<c else 0
+a2 = lambda w,b,c: (np.exp(-1j*b*w) - np.exp(-1j*c*w))/(1j*w*sqrt(2*pi))
+
+#a1 = lambda w,b: sqrt(2/pi)*sin(b*w)/w
+b = 1
+c = 2
+
+x = np.linspace(-5,5,100)
+w = np.linspace(-10,10,100)
+
+F2 = np.array([f_transform(lambda t:f2(t,b,c),i) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f2(x,b,c),x,F2,w)
+ax[1].plot(w,np.array(list(map(lambda w:a2(w,b,c),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a2(w,b,c),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].legend(loc = 'upper right',fontsize = 6)
+
+
+f2 = lambda t,b,c: 1 if b<t<c else 0
+a2 = lambda w,b,c: (np.exp(-1j*b*w) - np.exp(-1j*c*w))/(1j*w*sqrt(2*pi))
+
+#a1 = lambda w,b: sqrt(2/pi)*sin(b*w)/w
+b = 1
+c = 2
+
+x = np.linspace(-5,5,100)
+w = np.linspace(-10,10,100)
+
+F2 = np.array([f_transform(lambda t:f2(t,b,c),i) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f2(x,b,c),x,F2,w)
+ax[1].plot(w,np.array(list(map(lambda w:a2(w,b,c),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a2(w,b,c),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].legend(loc = 'upper right',fontsize = 6)
+
+
+f3_1 = lambda x: x+1 if(-1<x<0) else -x + 1 if(0<x<1) else 0
+F3_1 = np.array([f_transform(lambda t:f3_1(t),i) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f3_1(x),x,F3_1,w)
+ax[1].legend(loc = 'upper right',fontsize = 12)
+
+
+f3_2 = lambda x: -x-1 if(-1<x<0) else -x + 1 if(0<x<1) else 0
+F3_2 = np.array([f_transform(lambda t:f3_2(t),i) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f3_2(x),x,F3_2,w)
+ax[1].legend(loc = 'upper right',fontsize = 12)
+
+
+f3_3 = lambda x: x if(0<x<1) else -x + 2 if(1<x<2) else 0
+F3_3 = np.array([f_transform(lambda t:f3_3(t),i) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f3_3(x),x,F3_3,w)
+ax[1].legend(loc = 'upper right',fontsize = 12)
+"""
+"""
+f4 = lambda x,a: 1/(x**2 + a**2) 
 a = 1
-analytical1 = lambda f: k*(1 - np.exp(-1j*a*f))/(1j*f*sqrt(2*pi))
-fig,ax = plt.subplots(2,1)
-ax[0].plot(t,test.real)
-ax[1].plot(t,test.imag)
-ax[1].plot(t,np.array(list(map(analytical1,t))).imag,linestyle = '--')
+F4 = np.array([f_transform(lambda t:f4(t,a),i,lim = [0,10]) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f4(x,a),x,F4,w)
+ax[1].legend(loc = 'upper right',fontsize = 12)
+
+
+f5 = lambda x,a: np.exp(-a*x) if x>0 else 0  
+a = 1
+a5 = lambda w,a: 1/(sqrt(2*pi)*(a + 1j*w))
+F5 = np.array([f_transform(lambda t:f5(t,a),i,lim = [0,10]) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f5(x,a),x,F5,w)
+ax[1].plot(w,np.array(list(map(lambda w:a5(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a5(w,a),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].legend(loc = 'upper right',fontsize = 6)
+
+
+f6 = lambda x,a: np.exp(-a*x**2)    
+a = 1
+a6 = lambda w,a: 1/sqrt(2*a)*np.exp(-w**2/4/a)
+F6 = np.array([f_transform(lambda t:f6(t,a),i,lim = [-10,10]) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f6(x,a),x,F6,w)
+ax[1].plot(w,np.array(list(map(lambda w:a6(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a6(w,a),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].legend(loc = 'upper right',fontsize = 6)
+
+f7 = lambda x,a: np.sin(a*x)/x  
+a = 5
+a7 = lambda w,a: sqrt(pi/2) if abs(w)<a else 0
+F7 = np.array([f_transform(lambda t:f7(t,a),i,lim = [0,5]) for i in w])
+#F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
+fig,ax = plot(lambda x:f7(x,a),x,F7,w)
+ax[1].plot(w,np.array(list(map(lambda w:a7(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a7(w,a),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+#ax[1].legend(loc = 'upper right',fontsize = 6)
+
+
 
 
 def plot_fourier(fun,a,n):
