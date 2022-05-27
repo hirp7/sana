@@ -76,6 +76,19 @@ def f_transform(fun,f,lim = None):
         even = integrate.quad(lambda t:fun(t)*operator_e(f,t),lim[0],lim[1])[0]
         odd = integrate.quad(lambda t:fun(t)*operator_o(f,t),lim[0],lim[1])[0]        
     return 1/(sqrt(2*pi))*(even - 1j*odd)
+
+
+def if_transform(fun,t,lim = None):
+    operator_e = lambda t,w:cos(w*t)
+    operator_o = lambda t,w:sin(w*t)
+    if lim == None:
+        even = integrate.quad(lambda w:fun(w)*operator_e(w,t),-np.inf,np.inf)[0]
+        odd = integrate.quad(lambda w:fun(w)*operator_o(w,t),-np.inf,np.inf)[0]
+    else:
+        even = integrate.quad(lambda t:fun(w)*operator_e(w,t),lim[0],lim[1])[0]
+        odd = integrate.quad(lambda t:fun(w)*operator_o(w,t),lim[0],lim[1])[0]        
+    return 1/(sqrt(2*pi))*(even + 1j*odd)
+
 #test_f2 = lambda t: np.exp(t) if abs(t)<2 else 0
 
 #fig,ax = plot(lambda x:f1(x,b),x,F1,w)
@@ -93,7 +106,7 @@ def plot(f,t,F,w):
     label_set(ax[1],['w','magnitude'])
     #ax[0].set_label(ax[1].set_xlabel('frequency w')
     fig.tight_layout(pad = 1.2)
-    ax[0].set_title('Fourier')
+    #ax[0].set_title('Fourier')
     #fig.suptitle("Fourier")
     
     return fig,ax
@@ -125,6 +138,7 @@ x = np.linspace(-5,5,100)
 w = np.linspace(-10,10,100)
 
 F2 = np.array([f_transform(lambda t:f2(t,b,c),i) for i in w])
+F2_fun = lambda w: f_transform(f2,t)
 #F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
 fig,ax = plot(lambda x:f2(x,b,c),x,F2,w)
 ax[1].plot(w,np.array(list(map(lambda w:a2(w,b,c),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
@@ -197,7 +211,7 @@ F6 = np.array([f_transform(lambda t:f6(t,a),i,lim = [-10,10]) for i in w])
 #F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
 fig,ax = plot(lambda x:f6(x,a),x,F6,w)
 ax[1].plot(w,np.array(list(map(lambda w:a6(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
-ax[1].plot(w,np.array(list(map(lambda w:a6(w,a),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a6(w,a),w))).imag,'ro',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
 ax[1].legend(loc = 'upper right',fontsize = 6)
 
 f7 = lambda x,a: np.sin(a*x)/x  
@@ -207,8 +221,34 @@ F7 = np.array([f_transform(lambda t:f7(t,a),i,lim = [0,5]) for i in w])
 #F1 = np.array([f_transform(lambda t:f1(t,b),i) for i in w])
 fig,ax = plot(lambda x:f7(x,a),x,F7,w)
 ax[1].plot(w,np.array(list(map(lambda w:a7(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
-ax[1].plot(w,np.array(list(map(lambda w:a7(w,a),w))).imag,'yo',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a7(w,a),w))).imag,'ro',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
 #ax[1].legend(loc = 'upper right',fontsize = 6)
+
+
+f8 = lambda x,a: cos(x) if -a<x<a else 0
+a = 10
+a8 = lambda w,a: 1/sqrt(2*pi)*(sin(a*(1-w))/(1-w) + sin(a*(1+w))/(1+w))
+w = np.linspace(-2,2,100)
+
+F8 = np.array([f_transform(lambda t:f8(t,a),i) for i in w])
+fig,ax = plot(lambda x:f8(x,a),x,F8,w)
+ax[1].plot(w,np.array(list(map(lambda w:a8(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a8(w,a),w))).imag,'ro',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+#ax[1].legend(loc = 'upper right',fontsize = 6)
+#ax[1].set_ylim([-1,1])
+ax[0].set_title(r'f(x) = $\cos{x} (|x|< \pi)$')
+
+
+f8 = lambda x,a: sin(x) if -a<x<a else 0
+a = 10
+a8 = lambda w,a: 1j*(1/sqrt(2*pi)*(-sin(a*(1-w))/(1-w) + sin(a*(1+w))/(1+w)))
+w = np.linspace(-2,2,100)
+
+F8 = np.array([f_transform(lambda t:f8(t,a),i) for i in w])
+fig,ax = plot(lambda x:f8(x,a),x,F8,w)
+ax[1].plot(w,np.array(list(map(lambda w:a8(w,a),w))).real,'bo',linestyle = 'dotted',lw = 2,label = 'analytical:real',markevery = 10)
+ax[1].plot(w,np.array(list(map(lambda w:a8(w,a),w))).imag,'ro',linestyle = 'dotted',lw = 2,label = 'analytical:imag',markevery = 10)
+ax[0].set_title(r'f(x) = $\sin{x} (|x|< \pi)$')
 
 
 
