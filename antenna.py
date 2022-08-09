@@ -290,3 +290,64 @@ ax.set_ylim(-40,0)
 ax.legend()
 """
 
+
+"""
+Green function circular disk capacitance
+"""
+from scipy.integrate import quad
+e0 = 8.85e-12
+d = 1e-3
+er = 3
+Green = lambda alpha:1/(e0*alpha*(1 + er*coth(alpha*d)))
+Rho1 = lambda alpha,a: a*jv(1,alpha*a)/alpha
+Phi = lambda alpha,a: a/alpha*jv(1,alpha*a)
+
+a = 1e-3
+k11 = lambda alpha,a: Rho1(alpha,a)*Green(alpha)*Rho1(alpha,a)
+K11 = quad(lambda k:k11(k,a),0,np.inf)
+a1 = quad(lambda k:Rho1(k,a)*Phi(k,a),0,np.inf)
+
+C = 2*pi*a1[0]**2/K11[0]
+
+
+"""
+Via barrel-plate capacitance from TMz0 calculation
+"""
+
+from scipy.special import gamma,hankel1,hankel2,jv
+
+
+def Cb(a,b,R,h,er,f,N): #N is list
+    k0 = 2*pi*f/2.9979e8
+    kn = lambda n:sqrt(0j+(k0*er)**2 - (n*pi/h)**2)
+    e = er*e0
+
+    #gamma_Rn = -hankel2(0,kn*R)/jv(0,kn*R) #if PEC
+    #gamma_Rn = -hankel2(1,kn*R)/jv(1,kn*R) #if PMC
+    gamma_Rn = 0
+    
+    #gamma_an = -jv(0,kn*a)/hankel2(0,kn*a) #if PEC
+    #gamma_an = -jv(1,kn*a)/hankel2(1,kn*a) #if PMC
+    gamma_an = 0
+
+    def Cb_b(n):
+        
+        cb_n = (1 - gamma_Rn*gamma_an)**(-1)/(kn(n)**2*hankel2(0,kn(n)*a))*((hankel2(0,kn(n)*b) \
+                                                    - hankel2(0,kn(n)*a)) + gamma_Rn*(jv(0,kn(n)*b) - jv(0,kn(n)*a)))
+        return cb_n    
+    cb = 8*pi*e/h/log(b/a)*np.array([Cb_b(i) for i in N])
+    cb_sum = cb.sum()
+    return cb_sum,cb
+R =  1e-3
+a,b = [0.1e-3,0.35e-3]
+er = 3.84
+e0 = 8.85e-12
+h = 0.228e-3
+f = 1e9
+#Cb = 8*pi*e/h/log(b/a)*(1 - gamma_Rn*gamma_an)**(-1)/(kn**2*hankel2(0,kn*a))*((hankel2(0,kn*b) - hankel2(0,kn*a)) + gamma_Rn*(jv(0,kn*b) - jv(0,kn*a)))
+
+Cb(a,b,R,h,er,1e9,[1,3,5,7,9])
+
+print(f'Cb,complex:{Cb},abs:{np.abs(Cb)}')
+l = 0.025e-3
+Ca = 2*pi*e*l/log(b/a)
