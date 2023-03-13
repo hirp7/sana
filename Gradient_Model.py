@@ -7,7 +7,8 @@ from skrf.media import MLine, DefinedGammaZ0
 import skrf as rf
 
 import os
-path = r"D:\ATS\takahashi\Desktop\Analysis\Roughness"
+#path = r"D:\ATS\takahashi\Desktop\Analysis\Roughness"
+path = r"C:\Users\hiroa\github\AT&S\Analysis\Roughness"
 os.chdir(path)
 
 
@@ -148,7 +149,8 @@ for j,i in enumerate(Gradient_set):
     ax_B.plot(depth*1e6,np.abs(i.B)/np.abs(i.B[0]),color = color[j],label = str(frequencies[j]/1e9) + ' [GHz]')
     ax_Breal.plot(depth*1e6,(i.B/i.B[0]).real,color = color[j],label = str(frequencies[j]/1e9) + ' [GHz]')
     ax_Bimag.plot(depth*1e6,(i.B/i.B[0]).imag,color = color[j],label = str(frequencies[j]/1e9) + ' [GHz]')
-    ax_Jz.plot(depth*1e6,np.abs(i.Jz)/np.abs(np.max(i.Jz)),color = color[j],label = str(frequencies[j]/1e9) + ' [GHz]')
+    #ax_Jz.plot(depth*1e6,np.abs(i.Jz)/np.abs(np.max(i.Jz)),color = color[j],label = str(frequencies[j]/1e9) + ' [GHz]')
+    #
     #ax_P.plot(depth*1e6,np.abs(i.P_diss),color = color[j],linestyle = '--')
 [i.legend(loc = 'upper right',fontsize = 6) for i in ax_set]
 [[i.set_xlabel(set_xlabels),i.set_ylabel(set_ylabels[j])] for j,i in enumerate(ax_set) ]
@@ -193,27 +195,84 @@ ax[0].legend()
 
 
 def f(x):
-    return 0*x
+    return 0
 
 
-
-def FDM(x0,xn,n,a,b,c,f,alpha,beta): #Dirichlet 
+def FDM(x0,xn,n,a,b,c,f,alpha,beta,h): #Dirichlet 
     inv = np.linalg.inv
-    x = np.linspace(x0,xn,n,retstep = True)
-    h = x[1]
-    x = x[0]
+    from scipy.linalg import solve
+    x = np.linspace(x0,xn,n)
+    #h = 0.05
+    #x = x[0]
     #define A
     diagonal = h**2*c - 2*a
-    diagonal_side = a[1:] + h*b[1:]/2
-    A = np.diag(diagonal) + np.diag(diagonal_side,1) + np.diag(diagonal_side,-1)   
+    diagonal_lside = a[1:] - h*b[1:]/2
+    diagonal_rside = a[:-1] + h*b[:-1]/2
+
+    A = np.diag(diagonal) + np.diag(diagonal_rside,1) + np.diag(diagonal_lside,-1)   
     A = 1/h**2*A
 
     #define F
-    F = f(x)
+    F = np.array([f(i) for i in x])
     F[0] = F[0] - (a[0]/h**2 - b[0]/2/h)*alpha
-    F[n-1] = F[n-1] - (a[n-1]/h**2 + b[n-1]/2/h)*beta
-    U = inv(A)@F
+    F[-1] = F[-1] - (a[-1]/h**2 + b[-1]/2/h)*beta
+    #U = inv(A)@F
+    U = solve(A,F)
     return U,A,F,x
+
+def check_array(x,n):
+    if isinstance(x,(np.ndarray,list)):
+        if len(x) == n:
+            return True
+        else:
+            raise Exception("the length of coefficient does not match to the number of n")
+    else:
+        return False
+def make_array(a,n):
+    if check_array(a,n):
+        return a
+    else:
+        return np.ones(n)*a
+
+
+
+def solve_1DFDM(a,b,c,f,alpha,beta,x0,xn,n,h):
+    a,b,c = [make_array(i,n) for i in [a,b,c]]
+    
+    return FDM(x0,xn,n,a,b,c,f,alpha,beta,h)[0]
+    
+    
+x = np.linspace(0,1,100)
+y = lambda x: x*(1-x)*np.exp(x)
+
+fun = lambda x:x*(x+3)*np.exp(x)
+x_num = np.linspace(0,1,20)
+h = [1/5,1/10,1/20,1/21,1/25,1/30]
+ans = np.array([solve_1DFDM(-1,0,0,fun,0,0,0,1,20,i) for i in h])
+
+fig,ax = plt.subplots()
+[ax.scatter(x_num,i) for i in ans]
+ax.plot(x,[y(i) for i in x])
+ax.set_ylim(0,1)
+
+
+
+#y'' + 5y' + 4y = 1, 0-1, 0,0
+fun = lambda x: 1
+n = 100
+h = [1/5,1/10,1/20,1/50,1/100,1/1000]
+
+ans = np.array([solve_1DFDM(1,5,4,fun,0,0,0,0,n,i) for i in h])
+x_num = np.linspace(0,1,n)
+
+A = (exp(-3) - exp(1))/(4*(1 - exp(-3)))
+B = -0.25 - A
+y_a = lambda x: A*exp(-x) + B*exp(-4*x)+0.25
+fig,ax = plt.subplots()
+[ax.scatter(x_num,i) for i in ans]
+ax.plot(x_num,[y_a(i) for i in x_num])
+ax.set_ylim(-0.2,0.1)
+
 
 from scipy.stats import norm
 """
@@ -239,6 +298,8 @@ def Gradient_Model(frequency,Rq):
     U,A,F,x = FDM(xmin,xn,n,a,b,c,f,1,0)
     return U,x,Sigma_x
 
+
+from scipy.integrate import solve_bvp
 
 U,x,Sigma_x = Gradient_Model(1e9,1e-6)
 
